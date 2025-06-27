@@ -1,2 +1,3 @@
 [workspace]
 members = ["juniper-compose", "juniper-compose-macros"]
+resolver = "2"

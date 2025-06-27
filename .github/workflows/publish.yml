@@ -1,15 +1,120 @@
-name: Publish
+name: Publish to crates.io
+
 on:
   push:
-    branches: [master]
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      package_name:
+        description: 'Specific package name to publish (optional, publishes all if empty)'
+        required: false
+        type: string
+
+env:
+  MACROS_PACKAGE: juniper_compose_macros_ng
+  MAIN_PACKAGE: juniper_compose_ng
+
 jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - name: Log In
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+          components: clippy
+
+      - name: Cache cargo registry
+        uses: actions/cache@v3
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache cargo index
+        uses: actions/cache@v3
+        with:
+          path: ~/.cargo/git
+          key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache cargo build
+        uses: actions/cache@v3
+        with:
+          path: target
+          key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Run tests
+        run: cargo test --all --verbose
+
+      - name: Run clippy
+        run: cargo clippy --all --verbose -- -D warnings
+
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+
+      - name: Log in to crates.io
         run: cargo login ${{ secrets.CRATES_ACCESS_TOKEN }}
-      - name: Publish Macros
-        run: cargo publish --manifest-path ./juniper-compose-macros/Cargo.toml || true
-      - name: Publish Main Crate
-        run: cargo publish --manifest-path ./juniper-compose/Cargo.toml || true
+
+      - name: Publish specific package
+        if: ${{ github.event.inputs.package_name != '' }}
+        run: |
+          echo "Publishing specific package: ${{ github.event.inputs.package_name }}"
+          cargo publish -p ${{ github.event.inputs.package_name }} --verbose
+
+      - name: Publish macros package
+        if: ${{ github.event.inputs.package_name == '' || github.event.inputs.package_name == env.MACROS_PACKAGE }}
+        run: |
+          echo "Publishing macros package: ${{ env.MACROS_PACKAGE }}"
+          cargo publish -p ${{ env.MACROS_PACKAGE }} --verbose
+        continue-on-error: false
+
+      - name: Wait for macros crate to be available
+        if: ${{ github.event.inputs.package_name == '' }}
+        run: sleep 30
+
+      - name: Publish main package
+        if: ${{ github.event.inputs.package_name == '' || github.event.inputs.package_name == env.MAIN_PACKAGE }}
+        run: |
+          echo "Publishing main package: ${{ env.MAIN_PACKAGE }}"
+          cargo publish -p ${{ env.MAIN_PACKAGE }} --verbose
+        continue-on-error: false
+
+      - name: Get version from Cargo.toml
+        if: ${{ github.event.inputs.package_name == '' }}
+        id: get_version
+        run: |
+          VERSION=$(grep '^version = ' juniper-compose/Cargo.toml | cut -d '"' -f 2)
+          echo "version=v$VERSION" >> $GITHUB_OUTPUT
+          echo "raw_version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Create tag if not exists
+        if: ${{ github.event.inputs.package_name == '' && github.event_name == 'workflow_dispatch' }}
+        run: |
+          TAG=${{ steps.get_version.outputs.version }}
+          if ! git tag -l | grep -q "^$TAG$"; then
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git tag $TAG
+            git push origin $TAG
+          fi
+
+      - name: Create GitHub Release
+        if: ${{ github.event.inputs.package_name == '' }}
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ github.event_name == 'push' && github.ref_name || steps.get_version.outputs.version }}
+          name: Release ${{ github.event_name == 'push' && github.ref_name || steps.get_version.outputs.version }}
+          body: |
+            Released version ${{ steps.get_version.outputs.raw_version }} to crates.io
+            
+            ## Changes
+            - Updated juniper_compose_macros_ng to v${{ steps.get_version.outputs.raw_version }}
+            - Updated juniper_compose_ng to v${{ steps.get_version.outputs.raw_version }}
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

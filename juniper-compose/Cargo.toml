@@ -1,15 +1,15 @@
 [package]
-name = "juniper-compose"
-description = "Merge multiple Juniper object definitions into one"
+name = "juniper_compose_ng"
+description = "Merge multiple Juniper object definitions into one (Juniper 0.16 compatible fork)"
 categories = ["web-programming"]
-version = "0.0.3"
-authors = ["Kit Isaev <14875494+nikis05@users.noreply.github.com>"]
+version = "0.16.3"
+authors = ["tom-miy < 26715699+tom-miy@users.noreply.github.com>"]
 license = "MIT"
-edition = "2018"
+edition = "2024"
 documentation = "https://docs.rs/juniper-compose"
-repository = "https://github.com/nikis05/juniper-compose"
+repository = "https://github.com/tom-miy/juniper-compose"
 keywords = ["juniper", "compose", "merge"]
 
 [dependencies]
-juniper = { version = "0.15.9" }
-juniper-compose-macros = { version = "0.0.3", path = "../juniper-compose-macros" }
+juniper = { version = "0.16.2" }
+juniper_compose_macros_ng = { version = "0.16.3", path = "../juniper-compose-macros" }

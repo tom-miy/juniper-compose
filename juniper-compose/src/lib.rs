@@ -10,7 +10,7 @@
 //! You are building a GraphQL server using Juniper. At some point you realize that you have gigantic
 //! Query and Mutation types:
 //!
-//! ```
+//! ```ignore
 //! #[derive(Default)]
 //! struct Query;
 //!
@@ -42,19 +42,24 @@
 //!
 //! ## Usage
 //!
-//! ```
+//! ```ignore
+//! use juniper_compose_ng::{composable_object, composite_object};
+//! use juniper::graphql_object;
+//!
+//! // Define your types and context
+//! struct Context;
+//! #[derive(juniper::GraphQLObject)] struct User { id: String }
+//! #[derive(juniper::GraphQLObject)] struct Task { id: String }
+//!
+//! // Define composable query objects
 //! #[derive(Default)]
 //! struct UserQueries;
 //!
 //! #[composable_object]
-//! #[juniper::graphql_object]
+//! #[graphql_object]
 //! impl UserQueries {
-//!     async fn user(ctx: &Context, id: Uuid) -> User {
-//!         // ...
-//!     }
-//!
-//!     async fn users(ctx: &Context) -> Vec<User> {
-//!         // ...
+//!     async fn user(&self, ctx: &Context, id: String) -> User {
+//!         User { id }
 //!     }
 //! }
 //!
@@ -62,29 +67,38 @@
 //! struct TaskQueries;
 //!
 //! #[composable_object]
-//! #[juniper::graphql_object]
+//! #[graphql_object]
 //! impl TaskQueries {
-//!     async fn task(ctx: &Context, id: Uuid) -> Task {
-//!         // ...
-//!     }
-//!
-//!     async fn tasks(ctx: &Context) -> Vec<Task> {
-//!         // ...
+//!     async fn task(&self, ctx: &Context, id: String) -> Task {
+//!         Task { id }
 //!     }
 //! }
 //!
+//! // Compose them into a single Query type
 //! composite_object!(Query(UserQueries, TaskQueries));
 //! ```
 //!
 //! Custom contexts are supported:
 //!
-//! ```
+//! ```ignore
+//! use juniper_compose_ng::composite_object;
+//!
+//! struct MyCustomContext;
+//! #[derive(Default)] struct UserQueries;
+//! #[derive(Default)] struct TaskQueries;
+//!
 //! composite_object!(Query<Context = MyCustomContext>(UserQueries, TaskQueries));
 //! ```
 //!
 //! Visibility specifier for generated type is supported:
 //!
-//! ```
+//! ```ignore
+//! use juniper_compose_ng::composite_object;
+//!
+//! struct MyCustomContext;
+//! #[derive(Default)] struct UserQueries;
+//! #[derive(Default)] struct TaskQueries;
+//!
 //! composite_object!(pub(crate) Query<Context = MyCustomContext>(UserQueries, TaskQueries));
 //! ```
 //!
@@ -98,14 +112,19 @@ use std::borrow::Cow;
 ///
 /// ## Example
 ///
-/// ```
+/// ```ignore
+/// use juniper_compose_ng::composable_object;
+/// use juniper::graphql_object;
+///
+/// #[derive(Default)] struct UserQueries;
+///
 /// #[composable_object]
 /// #[graphql_object]
 /// impl UserQueries {
 ///     // ...
 /// }
 /// ```
-pub use juniper_compose_macros::composable_object;
+pub use juniper_compose_macros_ng::composable_object;
 
 /// Composes an object type from multiple [ComposableObject](ComposableObject)s.
 /// Custom context type may be specified, otherwise defaults to `()`.
@@ -113,12 +132,20 @@ pub use juniper_compose_macros::composable_object;
 ///
 /// ## Examples
 ///
-/// ```
+/// ```ignore
+/// use juniper_compose_ng::composite_object;
+///
+/// #[derive(Default)] struct UserQueries;
+/// #[derive(Default)] struct TaskQueries;
+/// #[derive(Default)] struct UserMutations;
+/// #[derive(Default)] struct TaskMutations;
+/// struct MyContextType;
+///
 /// composite_object!(Query(UserQueries, TaskQueries));
 /// composite_object!(Mutation<Context = MyContextType>(UserMutations, TaskMutations));
-/// composite_object!(pub Query(UserQueries, TaskQueries));
+/// composite_object!(pub QueryPublic(UserQueries, TaskQueries));
 /// ```
-pub use juniper_compose_macros::composite_object;
+pub use juniper_compose_macros_ng::composite_object;
 
 /// Object types that you want to compose into one must implement this trait.
 /// Use [composable_object](composable_object) to implement it.
@@ -133,11 +160,11 @@ where
 
 #[doc(hidden)]
 #[allow(clippy::must_use_candidate)]
-pub fn type_to_owned<'a>(ty: &Type<'a>) -> Type<'static> {
+pub fn type_to_owned(ty: &Type<'_>) -> Type<'static> {
     match ty {
         Type::Named(name) => Type::Named(Cow::Owned(name.to_string())),
         Type::NonNullNamed(name) => Type::NonNullNamed(Cow::Owned(name.to_string())),
-        Type::List(inner) => Type::List(Box::new(type_to_owned(inner))),
-        Type::NonNullList(inner) => Type::NonNullList(Box::new(type_to_owned(inner))),
+        Type::List(inner, size) => Type::List(Box::new(type_to_owned(inner)), *size),
+        Type::NonNullList(inner, size) => Type::NonNullList(Box::new(type_to_owned(inner)), *size),
     }
 }

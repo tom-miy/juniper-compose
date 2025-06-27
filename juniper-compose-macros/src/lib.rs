@@ -6,12 +6,11 @@ use heck::ToLowerCamelCase;
 use proc_macro2::{Span, TokenStream};
 use quote::quote;
 use syn::{
-    parenthesized,
+    Error, Ident, ImplItem, ItemImpl, LitStr, Path, Result, Token, Type, Visibility, parenthesized,
     parse::Parse,
-    parse2, parse_macro_input,
+    parse_macro_input, parse2,
     punctuated::Punctuated,
     token::{Comma, Paren},
-    Error, Ident, ImplItem, ItemImpl, LitStr, Path, Result, Token, Type, Visibility,
 };
 
 #[proc_macro_attribute]
@@ -57,7 +56,7 @@ impl Parse for CompositeObjectInput {
             ident,
             context_ty,
             paren,
-            composables: composables.parse_terminated(Path::parse)?,
+            composables: composables.parse_terminated(Path::parse, Comma)?,
         })
     }
 }
@@ -101,7 +100,7 @@ fn expand_composable_object(item_impl: &ItemImpl) -> TokenStream {
         .items
         .iter()
         .filter_map(|item| {
-            if let ImplItem::Method(method) = item {
+            if let ImplItem::Fn(method) = item {
                 Some(method)
             } else {
                 None

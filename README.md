@@ -1,8 +1,21 @@
-# juniper-compose
+# juniper_compose_ng
 
 Merge multiple [Juniper](https://docs.rs/juniper) object definitions into a single object type.
 
-[crates.io](https://crates.io/crates/juniper-compose) | [docs](https://docs.rs/juniper-compose) | [github](https://github.com/nikis05/juniper-compose)
+[crates.io](https://crates.io/crates/juniper_compose_ng) | [docs](https://docs.rs/juniper_compose_ng) | [github](https://github.com/tom-miy/juniper-compose)
+
+## Juniper 0.16 Compatibility
+
+This is a fork of the original juniper-compose crate that has been updated to support Juniper 0.16. The original crate was designed for earlier versions of Juniper, and this fork includes the necessary modifications to ensure compatibility with Juniper 0.16's API changes.
+
+## Installation
+
+Add this to your `Cargo.toml`:
+
+```toml
+[dependencies]
+juniper_compose_ng = "0.16.2"
+```
 
 ## Motivation
 
@@ -88,3 +101,7 @@ composite_object!(pub(crate) Query<Context = MyCustomContext>(UserQueries, TaskQ
 ```
 
 Custom scalars are currently not supported, but will be added if requested.
+
+## Credits
+
+This crate is a fork of the original [juniper-compose](https://github.com/nikis05/juniper-compose) by Kit Isaev, updated to support Juniper 0.16. We thank the original author for their excellent work.
